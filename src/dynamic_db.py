@@ -29,9 +29,10 @@ def init_db(db_path=None, data_path=None):
                  id INTEGER PRIMARY KEY AUTOINCREMENT,
                  first_name TEXT, last_name TEXT, license_plate TEXT,
                  start_time TEXT, end_time TEXT,
-                 status TEXT DEFAULT 'pending_approval')""")
+                 status TEXT DEFAULT 'pending_approval',
+                 admin_comment TEXT DEFAULT '',
+                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
 
-    # Only seed if empty
     count = c.execute("SELECT COUNT(*) FROM working_hours").fetchone()[0]
     if count == 0:
         raw = json.loads(open(data_path or DATA_PATH).read())
@@ -77,7 +78,7 @@ def get_dynamic_context(db_path=None):
 
 
 def save_reservation(data: dict, db_path=None):
-    """Save a completed reservation to the database. Returns row ID."""
+    """Save a completed reservation. Returns row ID."""
     conn = get_connection(db_path)
     c = conn.execute(
         "INSERT INTO reservations (first_name,last_name,license_plate,start_time,end_time,status) "
@@ -88,3 +89,37 @@ def save_reservation(data: dict, db_path=None):
     row_id = c.lastrowid
     conn.close()
     return row_id
+
+
+# ─── NEW: Stage 2 additions ──────────────────────────────────────────
+
+def get_pending_reservations(db_path=None):
+    """Return all reservations with status 'pending_approval'."""
+    conn = get_connection(db_path)
+    rows = conn.execute(
+        "SELECT * FROM reservations WHERE status = 'pending_approval' ORDER BY id"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_reservation(reservation_id: int, db_path=None):
+    """Return a single reservation by ID."""
+    conn = get_connection(db_path)
+    row = conn.execute("SELECT * FROM reservations WHERE id = ?", (reservation_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_reservation_status(reservation_id: int, status: str, comment: str = "", db_path=None):
+    """Update reservation status to 'approved' or 'rejected'. Returns updated row or None."""
+    if status not in ("approved", "rejected"):
+        return None
+    conn = get_connection(db_path)
+    conn.execute(
+        "UPDATE reservations SET status = ?, admin_comment = ? WHERE id = ?",
+        (status, comment, reservation_id))
+    conn.commit()
+    row = conn.execute("SELECT * FROM reservations WHERE id = ?", (reservation_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
