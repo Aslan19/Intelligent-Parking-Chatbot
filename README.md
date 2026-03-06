@@ -1,66 +1,44 @@
 # 🅿️ Parking Chatbot
 
-RAG-based chatbot for parking information and reservations.
-
-## Architecture
-
-```
-User Message
-     │
-     ▼
-┌─────────────┐
-│ Input Guard  │  ← blocks prompt injection
-├─────────────┤
-│ Classifier   │  ← "info" or "reservation"
-├──────┬──────┤
-│      │      │
-▼      │      ▼
-RAG    │   Reservation
-Info   │   Collector
-│      │      │
-│  ChromaDB   │  SQLite
-│  (static)   │  (dynamic + reservations)
-├──────┴──────┤
-│ Output Guard │  ← redacts sensitive data
-└─────────────┘
-     │
-     ▼
-  Response
-```
+RAG chatbot with admin approval and MCP file writing.
 
 ## Setup
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env   # add your OPENAI_API_KEY
+echo "OPENAI_API_KEY=sk-your-key" > .env
 ```
 
 ## Run
 
 ```bash
-# Interactive chat
-python -m src.main
-
-# Run evaluation
-python -m src.main eval
+python -m src.main mcp      # Terminal 1: MCP server
+python -m src.main chat     # Terminal 2: user chat
+python -m src.main admin    # Terminal 3: admin panel
+python -m src.main eval     # evaluation report
+pytest tests/ -v             # tests
 ```
 
-## Run Tests
+## Demo
 
-```bash
-pytest tests/ -v
 ```
+── User ──                         ── Admin ──
+You: What are the prices?
+Bot: Hourly \$5, daily \$30...
 
-## Files
+You: I want to book
+Bot: First name?  → John
+Bot: Last name?   → Doe
+Bot: Plate?       → ABC-123
+Bot: Start?       → 2025-07-01 09:00
+Bot: End?         → 2025-07-01 17:00
+Bot: ✅ Submitted (#1)!
+                                   Admin> list
+                                   Admin> approve 1 Spot B12
+                                     ✅ Approved + written to file.
+You: check my reservation
+Bot: ✅ Approved! Note: Spot B12
 
-| File | Purpose |
-|------|---------|
-| `src/config.py` | Settings from .env |
-| `src/loader.py` | Load static docs from JSON |
-| `src/dynamic_db.py` | SQLite for hours/prices/availability |
-| `src/vectorstore.py` | ChromaDB vector store |
-| `src/rag_chain.py` | RAG: retrieve + LLM answer |
-| `src/guardrails.py` | Input/output safety filters |
-| `src/chatbot.py` | LangGraph conversation flow |
-| `src/evaluation.py` | Recall@K, Precision@K metrics |
-| `src/main.py` | Entry point |
+── confirmed_reservations.txt ──
+John Doe | ABC-123 | 2025-07-01 09:00 - 2025-07-01 17:00 | 2025-07-01 14:32:15
+```
