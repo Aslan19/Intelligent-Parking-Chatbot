@@ -1,6 +1,9 @@
 """Input/output guardrails for safety."""
 
 import re
+import logging                                                   # ✅ CHANGE #7
+
+logger = logging.getLogger(__name__)                             # ✅ CHANGE #7
 
 SENSITIVE_OUTPUT_PATTERNS = [
     (re.compile(r'\b\d{3}-\d{2}-\d{4}\b'), "SSN"),
@@ -21,14 +24,16 @@ INJECTION_PATTERNS = [
 def sanitize_input(text: str) -> tuple[str, bool]:
     for pattern in INJECTION_PATTERNS:
         if pattern.search(text):
+            logger.warning("INJECTION BLOCKED: '%s'", text[:80])         # ✅ CHANGE #7
             return pattern.sub("[blocked]", text), True
     return text, False
 
 
 def sanitize_output(text: str) -> tuple[str, bool]:
     found = False
-    for pattern, _ in SENSITIVE_OUTPUT_PATTERNS:
+    for pattern, label in SENSITIVE_OUTPUT_PATTERNS:
         if pattern.search(text):
             text = pattern.sub("[REDACTED]", text)
+            logger.warning("REDACTED %s from output", label)            # ✅ CHANGE #7
             found = True
     return text, found

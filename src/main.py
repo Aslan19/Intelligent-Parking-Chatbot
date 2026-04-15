@@ -1,19 +1,28 @@
 """Entry point: chat | admin | mcp | eval"""
 
 import sys
+import logging                                                   # ✅ CHANGE #7
 from src.loader import load_static_documents
 from src.vectorstore import ingest_documents
 from src.dynamic_db import init_db, get_reservation
 from src.orchestrator import build_pipeline
 from src.evaluation import evaluate_retrieval, print_report
 
+# ✅ CHANGE #7: configure logging at startup
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S"
+)
+logger = logging.getLogger(__name__)
+
 
 def setup():
-    print("Loading data...")
+    logger.info("Loading data...")                               # ✅ CHANGE #7
     docs = load_static_documents()
     vs = ingest_documents(docs)
     init_db()
-    print("Ready!\n")
+    logger.info("System ready")                                  # ✅ CHANGE #7
     return vs
 
 
@@ -63,27 +72,24 @@ def run_admin():
         state = {"mode": "admin", "user_message": ""}
 
         if parts[0] == "list":
-            pass  # admin_action stays None → lists pending
-
+            pass
         elif parts[0] == "view" and len(parts) == 2:
             r = get_reservation(int(parts[1]))
             if not r:
                 print("  Not found.\n")
             else:
-                print(f"  #{r['id']}: {r['first_name']} {r['last_name']}")
-                print(f"  Plate: {r['license_plate']}")
-                print(f"  Period: {r['start_time']} → {r['end_time']}")
-                print(f"  Status: {r['status']}")
-                if r.get("admin_comment"):
-                    print(f"  Comment: {r['admin_comment']}")
+                print(f"  #{r.id}: {r.full_name}")              # ✅ CHANGE #6: model access
+                print(f"  Plate: {r.license_plate}")
+                print(f"  Period: {r.start_time} → {r.end_time}")
+                print(f"  Status: {r.status}")
+                if r.admin_comment:
+                    print(f"  Comment: {r.admin_comment}")
                 print()
             continue
-
         elif parts[0] in ("approve", "reject") and len(parts) >= 2:
             state["admin_action"] = parts[0]
             state["admin_reservation_id"] = int(parts[1])
             state["admin_comment"] = " ".join(parts[2:]) if len(parts) > 2 else ""
-
         else:
             print("  Unknown. Use: list | view <id> | approve <id> | reject <id>\n")
             continue
@@ -97,7 +103,7 @@ def run_admin():
 def run_mcp():
     import uvicorn
     from src.config import MCP_HOST, MCP_PORT
-    print(f"Starting MCP server on {MCP_HOST}:{MCP_PORT}")
+    logger.info("Starting MCP server on %s:%d", MCP_HOST, MCP_PORT)  # ✅ CHANGE #7
     uvicorn.run("src.mcp_server:app", host=MCP_HOST, port=MCP_PORT, reload=True)
 
 

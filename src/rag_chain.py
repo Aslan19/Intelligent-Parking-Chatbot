@@ -1,12 +1,15 @@
 """RAG chain: vector search + SQL context + LLM answer."""
 
 import time
+import logging                                                   # ✅ CHANGE #7
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from src.config import OPENAI_API_KEY, MODEL_NAME, TOP_K
 from src.vectorstore import search
 from src.dynamic_db import get_dynamic_context
+
+logger = logging.getLogger(__name__)                             # ✅ CHANGE #7
 
 SYSTEM_PROMPT = """You are a helpful parking assistant for CityCenter Smart Parking.
 Answer ONLY based on the context below. If you don't know, say so.
@@ -35,16 +38,25 @@ def build_rag_chain(vector_store, db_path=None):
         static_ctx = "\n\n".join(d.page_content for d in docs)
         dynamic_ctx = get_dynamic_context(db_path)
 
-        answer = chain.invoke({
-            "static_context": static_ctx,
-            "dynamic_context": dynamic_ctx,
-            "question": question
-        })
+        # ✅ CHANGE #8: try/except around LLM call
+        try:
+            answer = chain.invoke({
+                "static_context": static_ctx,
+                "dynamic_context": dynamic_ctx,
+                "question": question
+            })
+        except Exception as e:
+            logger.error("LLM call failed: %s", e)              # ✅ CHANGE #7
+            answer = ("I'm sorry, I'm having trouble connecting to my language service. "
+                      "Please try again in a moment.")           # ✅ CHANGE #8: graceful fallback
+
+        latency = round((time.perf_counter() - t0) * 1000, 2)
+        logger.info("RAG answered in %.0fms: '%s'", latency, question[:50])  # ✅ CHANGE #7
 
         return {
             "answer": answer,
             "retrieved_docs": [d.page_content for d in docs],
-            "latency_ms": round((time.perf_counter() - t0) * 1000, 2)
+            "latency_ms": latency
         }
 
     return ask
