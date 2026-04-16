@@ -1,14 +1,13 @@
-"""Entry point: chat | admin | mcp | eval"""
+"""Entry point: chat | admin | eval"""
 
 import sys
-import logging                                                   # ✅ CHANGE #7
+import logging
 from src.loader import load_static_documents
 from src.vectorstore import ingest_documents
 from src.dynamic_db import init_db, get_reservation
 from src.orchestrator import build_pipeline
 from src.evaluation import evaluate_retrieval, print_report
 
-# ✅ CHANGE #7: configure logging at startup
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -18,11 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 def setup():
-    logger.info("Loading data...")                               # ✅ CHANGE #7
+    logger.info("Loading data...")
     docs = load_static_documents()
     vs = ingest_documents(docs)
     init_db()
-    logger.info("System ready")                                  # ✅ CHANGE #7
+    logger.info("System ready")
     return vs
 
 
@@ -78,7 +77,7 @@ def run_admin():
             if not r:
                 print("  Not found.\n")
             else:
-                print(f"  #{r.id}: {r.full_name}")              # ✅ CHANGE #6: model access
+                print(f"  #{r.id}: {r.full_name}")
                 print(f"  Plate: {r.license_plate}")
                 print(f"  Period: {r.start_time} → {r.end_time}")
                 print(f"  Status: {r.status}")
@@ -100,20 +99,13 @@ def run_admin():
     print("Goodbye!")
 
 
-def run_mcp():
-    import uvicorn
-    from src.config import MCP_HOST, MCP_PORT
-    logger.info("Starting MCP server on %s:%d", MCP_HOST, MCP_PORT)  # ✅ CHANGE #7
-    uvicorn.run("src.mcp_server:app", host=MCP_HOST, port=MCP_PORT, reload=True)
-
-
 def run_eval():
     report = evaluate_retrieval(setup())
     print_report(report)
 
 
 if __name__ == "__main__":
-    modes = {"chat": run_chat, "admin": run_admin, "mcp": run_mcp, "eval": run_eval}
+    modes = {"chat": run_chat, "admin": run_admin, "eval": run_eval}
     mode = sys.argv[1] if len(sys.argv) > 1 else "chat"
     if mode in modes:
         modes[mode]()
